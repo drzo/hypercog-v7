@@ -1,0 +1,49 @@
+name: Analyze Improvement Cycles
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Run hourly
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    env:
+      GIT_HUB_API_KEY: ${{ secrets.GIT_HUB_API_KEY }}
+      GIT_HUB_REPO_URL: ${{ secrets.GIT_HUB_REPO_URL }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Analyze cycle results
+        run: |
+          node -e "
+            const { createCycleAnalyzer } = require('./dist/services/trigger/jobs/improvement/analyzer');
+            const analyzer = createCycleAnalyzer();
+            
+            // Load and analyze results from both cycles
+            const analysis = await analyzer.analyzeCycleResults();
+            
+            // Save analysis results
+            const fs = require('fs');
+            const timestamp = new Date().toISOString();
+            const analysisPath = \`data/analysis/\${timestamp}.json\`;
+            
+            fs.mkdirSync('data/analysis', { recursive: true });
+            fs.writeFileSync(analysisPath, JSON.stringify(analysis, null, 2));
+            
+            // Commit analysis results
+            const exec = require('child_process').execSync;
+            exec('git config --global user.name \"HyperCog\"');
+            exec('git config --global user.email \"bot@hypercog.ai\"');
+            exec(\`git add \${analysisPath}\`);
+            exec('git commit -m \"Add cycle analysis results [skip ci]\"');
+            exec('git push');
+          "

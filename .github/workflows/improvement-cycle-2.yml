@@ -1,0 +1,40 @@
+name: HyperCog Improvement Cycle 2
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Run every 5 minutes offset
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  improve:
+    runs-on: ubuntu-latest
+    env:
+      GIT_HUB_API_KEY: ${{ secrets.GIT_HUB_API_KEY }}
+      GIT_HUB_REPO_URL: ${{ secrets.GIT_HUB_REPO_URL }}
+      TRIGGER_DEV: ${{ secrets.TRIGGER_DEV }}
+      TRIGGER_PAT: ${{ secrets.TRIGGER_PAT }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run improvement cycle with alternative strategy
+        run: |
+          export IMPROVEMENT_STRATEGY=alternative
+          node dist/index.js
+        
+      - name: Save cycle results
+        run: |
+          mkdir -p data/cycles/2
+          cp logs/*.json data/cycles/2/
+          git config --global user.name 'HyperCog'
+          git config --global user.email 'bot@hypercog.ai'
+          git add data/cycles/2
+          git commit -m "Improvement cycle 2 results [skip ci]"
+          git push

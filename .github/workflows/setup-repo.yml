@@ -1,0 +1,34 @@
+name: Setup Repository
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      GIT_HUB_API_KEY: ${{ secrets.GIT_HUB_API_KEY }}
+      GIT_HUB_REPO_URL: ${{ secrets.GIT_HUB_REPO_URL }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create data directories
+        run: |
+          mkdir -p data/cycles/1
+          mkdir -p data/cycles/2
+          mkdir -p data/analysis
+          mkdir -p logs
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name 'HyperCog'
+          git config --global user.email 'bot@hypercog.ai'
+          
+      - name: Commit directory structure
+        run: |
+          git add data logs
+          git commit -m "Initialize data and logs directories [skip ci]"
+          git push

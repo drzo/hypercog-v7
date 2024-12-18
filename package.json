@@ -1,0 +1,21 @@
+{
+  "name": "hypercog",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc -w",
+    "test": "node --test dist/**/*.test.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^19.0.13",
+    "@trigger.dev/sdk": "^2.3.18",
+    "@cloudflare/workers-types": "^4.20241216.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.0.0"
+  }
+}
