@@ -1,41 +1,57 @@
-import { createImprovementCycle } from './services/improvement/cycle';
-import { setupTriggerIntegrations } from './services/trigger/setup';
-import { loggerService } from './services/logger.service';
-import type { Env } from './types/env';
+import { config } from 'dotenv';
+import { Logger } from './services/logger.service';
+import { ImprovementCycle } from './services/improvement/cycle.service';
+import { TriggerClient } from '@trigger.dev/sdk';
+
+// Load environment variables
+config();
+
+const logger = new Logger();
 
 async function main() {
-  try {
-    loggerService.info('Starting HyperCog');
+    try {
+        logger.info('Starting HyperCog self-improvement system');
 
-    // Load environment variables
-    const env: Env = {
-      HYPERCOG_KV: process.env.HYPERCOG_KV as any,
-      IMPROVEMENT_QUEUE: process.env.IMPROVEMENT_QUEUE as any,
-      DB: process.env.DB as any,
-      TRIGGER_DEV: process.env.TRIGGER_DEV!,
-      TRIGGER_PAT: process.env.TRIGGER_PAT!,
-      GIT_HUB_API_KEY: process.env.GIT_HUB_API_KEY!,
-      GIT_HUB_REPO_URL: process.env.GIT_HUB_REPO_URL!
-    };
+        // Initialize Trigger.dev client
+        const client = new TriggerClient({
+            id: 'hypercog-v7',
+            apiKey: process.env.TRIGGER_DEV ?? ''
+        });
 
-    // Set up Trigger.dev integrations
-    await setupTriggerIntegrations(env);
+        // Create improvement cycle instance
+        const cycle = new ImprovementCycle();
 
-    // Initialize improvement cycle
-    const cycle = createImprovementCycle(env);
+        // Run initial evaluation
+        const evaluation = await cycle.evaluateCurrentState();
+        logger.info('Initial system evaluation', evaluation);
 
-    // Execute initial improvement cycle
-    await cycle.execute();
+        // Generate improvement proposal
+        const proposal = await cycle.proposeImprovement();
+        logger.info('Generated improvement proposal', proposal);
 
-    loggerService.info('HyperCog started successfully');
-  } catch (error) {
-    loggerService.error('Failed to start HyperCog', error);
-    process.exit(1);
-  }
+        // Execute improvement if confidence is high enough
+        if (proposal.implementation && proposal.confidence >= 0.7) {
+            const success = await cycle.executeImprovement(proposal.implementation);
+            logger.info('Improvement execution result', { success });
+
+            // Document results
+            await cycle.documentResults({
+                evaluation,
+                proposal,
+                success
+            });
+        } else {
+            logger.warn('Skipping improvement execution - low confidence or no implementation', {
+                confidence: proposal.confidence,
+                hasImplementation: !!proposal.implementation
+            });
+        }
+
+        logger.info('HyperCog self-improvement cycle completed');
+    } catch (error) {
+        logger.error('Error in self-improvement cycle', error instanceof Error ? error : new Error(String(error)));
+        process.exit(1);
+    }
 }
 
-// Run the application
-main().catch(error => {
-  console.error('Unhandled error:', error);
-  process.exit(1);
-});
+main();

@@ -1,53 +1,47 @@
-export interface LogEntry {
-  level: 'debug' | 'info' | 'warn' | 'error';
-  message: string;
-  timestamp: string;
-  data?: unknown;
-}
+import winston from 'winston';
+import path from 'path';
 
-export class LoggerService {
-  private readonly logs: LogEntry[] = [];
-  private readonly maxLogs = 1000;
+export class Logger {
+    private logger: winston.Logger;
 
-  private createEntry(level: LogEntry['level'], message: string, data?: unknown): LogEntry {
-    return {
-      level,
-      message,
-      timestamp: new Date().toISOString(),
-      data
-    };
-  }
-
-  private log(entry: LogEntry): void {
-    this.logs.push(entry);
-    if (this.logs.length > this.maxLogs) {
-      this.logs.shift();
+    constructor() {
+        this.logger = winston.createLogger({
+            level: 'info',
+            format: winston.format.combine(
+                winston.format.timestamp(),
+                winston.format.json()
+            ),
+            transports: [
+                new winston.transports.File({
+                    filename: path.join(process.cwd(), 'logs', 'error.log'),
+                    level: 'error'
+                }),
+                new winston.transports.File({
+                    filename: path.join(process.cwd(), 'logs', 'combined.log')
+                }),
+                new winston.transports.Console({
+                    format: winston.format.combine(
+                        winston.format.colorize(),
+                        winston.format.simple()
+                    )
+                })
+            ]
+        });
     }
-    
-    if (import.meta.env?.DEV) {
-      console[entry.level](entry.message, entry.data || '');
+
+    info(message: string, meta?: any): void {
+        this.logger.info(message, meta);
     }
-  }
 
-  debug(message: string, data?: unknown): void {
-    this.log(this.createEntry('debug', message, data));
-  }
+    warn(message: string, meta?: any): void {
+        this.logger.warn(message, meta);
+    }
 
-  info(message: string, data?: unknown): void {
-    this.log(this.createEntry('info', message, data));
-  }
+    error(message: string, meta?: any): void {
+        this.logger.error(message, meta);
+    }
 
-  warn(message: string, data?: unknown): void {
-    this.log(this.createEntry('warn', message, data));
-  }
-
-  error(message: string, data?: unknown): void {
-    this.log(this.createEntry('error', message, data));
-  }
-
-  getLogs(): LogEntry[] {
-    return [...this.logs];
-  }
+    debug(message: string, meta?: any): void {
+        this.logger.debug(message, meta);
+    }
 }
-
-export const loggerService = new LoggerService();
