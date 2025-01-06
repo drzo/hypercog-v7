@@ -1,27 +1,27 @@
 # Environment variables
-.env
-.env.*
-!.env.example
+#.env
+#.env.*
+#!.env.example
 
 # Dependencies
-node_modules/
-.npm
+#node_modules/
+#.npm
 
 # Build output
-dist/
-build/
+#dist/
+#build/
 
 # Logs
-logs/
-*.log
-npm-debug.log*
+#logs/
+#*.log
+#npm-debug.log*
 
 # IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+#.vscode/
+#.idea/
+#*.swp
+#*.swo
 
 # OS
-.DS_Store
-Thumbs.db
+#.DS_Store
+#Thumbs.db

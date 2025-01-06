@@ -11,6 +11,9 @@ jobs:
     env:
       GIT_HUB_API_KEY: ${{ secrets.GIT_HUB_API_KEY }}
       GIT_HUB_REPO_URL: ${{ secrets.GIT_HUB_REPO_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANALYSIS_MODE: 'comparative'  # Enable comparative analysis
     
     steps:
       - uses: actions/checkout@v4
@@ -26,24 +29,68 @@ jobs:
         run: |
           node -e "
             const { createCycleAnalyzer } = require('./dist/services/trigger/jobs/improvement/analyzer');
-            const analyzer = createCycleAnalyzer();
-            
-            // Load and analyze results from both cycles
-            const analysis = await analyzer.analyzeCycleResults();
-            
-            // Save analysis results
             const fs = require('fs');
-            const timestamp = new Date().toISOString();
-            const analysisPath = \`data/analysis/\${timestamp}.json\`;
+            const path = require('path');
             
-            fs.mkdirSync('data/analysis', { recursive: true });
-            fs.writeFileSync(analysisPath, JSON.stringify(analysis, null, 2));
+            async function performAnalysis() {
+              const analyzer = createCycleAnalyzer();
+              
+              // Get latest results from both cycles
+              const cycle1Path = 'data/cycles/1';
+              const cycle2Path = 'data/cycles/2';
+              
+              const getLatestDir = (basePath) => {
+                const dirs = fs.readdirSync(basePath).filter(f => 
+                  fs.statSync(path.join(basePath, f)).isDirectory()
+                );
+                return dirs.sort().reverse()[0];
+              };
+              
+              const cycle1Latest = path.join(cycle1Path, getLatestDir(cycle1Path));
+              const cycle2Latest = path.join(cycle2Path, getLatestDir(cycle2Path));
+              
+              // Analyze results from both cycles
+              const analysis = await analyzer.analyzeCycleResults({
+                cycle1: {
+                  path: cycle1Latest,
+                  strategy: 'standard',
+                  model: 'gpt-4'
+                },
+                cycle2: {
+                  path: cycle2Latest,
+                  strategy: 'alternative',
+                  model: 'claude-2'
+                }
+              });
+              
+              // Save analysis results with timestamp
+              const timestamp = new Date().toISOString();
+              const analysisDir = 'data/analysis';
+              const analysisPath = path.join(analysisDir, `${timestamp}.json`);
+              
+              fs.mkdirSync(analysisDir, { recursive: true });
+              fs.writeFileSync(
+                analysisPath, 
+                JSON.stringify(analysis, null, 2)
+              );
+              
+              // Generate comparative report
+              const report = analyzer.generateComparativeReport(analysis);
+              fs.writeFileSync(
+                path.join(analysisDir, `${timestamp}-report.md`),
+                report
+              );
+              
+              return { analysisPath, reportPath: `${timestamp}-report.md` };
+            }
             
-            // Commit analysis results
-            const exec = require('child_process').execSync;
-            exec('git config --global user.name \"HyperCog\"');
-            exec('git config --global user.email \"bot@hypercog.ai\"');
-            exec(\`git add \${analysisPath}\`);
-            exec('git commit -m \"Add cycle analysis results [skip ci]\"');
-            exec('git push');
+            performAnalysis().then(({ analysisPath, reportPath }) => {
+              // Commit analysis results
+              const exec = require('child_process').execSync;
+              exec('git config --global user.name \"HyperCog\"');
+              exec('git config --global user.email \"bot@hypercog.ai\"');
+              exec(\`git add \${analysisPath} data/analysis/\${reportPath}\`);
+              exec('git commit -m \"Add cycle analysis and comparative report [skip ci]\"');
+              exec('git push');
+            }).catch(console.error);
           "

@@ -2,7 +2,7 @@ name: HyperCog Improvement Cycle 2
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Run every 5 minutes offset
+    - cron: '2/5 * * * *'  # Run every 5 minutes, offset by 2 minutes
   workflow_dispatch:  # Allow manual triggers
 
 jobs:
@@ -13,6 +13,11 @@ jobs:
       GIT_HUB_REPO_URL: ${{ secrets.GIT_HUB_REPO_URL }}
       TRIGGER_DEV: ${{ secrets.TRIGGER_DEV }}
       TRIGGER_PAT: ${{ secrets.TRIGGER_PAT }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      IMPROVEMENT_STRATEGY: 'alternative'  # Set strategy as env var
+      IMPROVEMENT_MODEL: 'claude-2'        # Use Claude for this cycle
+      IMPROVEMENT_CYCLE: '2'              # Identify cycle number
     
     steps:
       - uses: actions/checkout@v4
@@ -26,15 +31,30 @@ jobs:
         
       - name: Run improvement cycle with alternative strategy
         run: |
-          export IMPROVEMENT_STRATEGY=alternative
+          # Create cycle-specific log directory
+          mkdir -p logs/cycle-2
+          
+          # Run with alternative configuration
           node dist/index.js
         
       - name: Save cycle results
         run: |
+          # Ensure cycle-specific directory exists
           mkdir -p data/cycles/2
-          cp logs/*.json data/cycles/2/
+          
+          # Copy logs with timestamp
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          cp -r logs/cycle-2/* data/cycles/2/${TIMESTAMP}/
+          
+          # Configure git
           git config --global user.name 'HyperCog'
           git config --global user.email 'bot@hypercog.ai'
+          
+          # Commit with detailed message
           git add data/cycles/2
-          git commit -m "Improvement cycle 2 results [skip ci]"
+          git commit -m "Improvement cycle 2 results [${TIMESTAMP}]
+          
+          Strategy: Alternative (Claude-based)
+          Timestamp: ${TIMESTAMP}
+          [skip ci]"
           git push

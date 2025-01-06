@@ -13,6 +13,11 @@ jobs:
       GIT_HUB_REPO_URL: ${{ secrets.GIT_HUB_REPO_URL }}
       TRIGGER_DEV: ${{ secrets.TRIGGER_DEV }}
       TRIGGER_PAT: ${{ secrets.TRIGGER_PAT }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      IMPROVEMENT_STRATEGY: 'standard'     # Set strategy as env var
+      IMPROVEMENT_MODEL: 'gpt-4'          # Use GPT-4 for this cycle
+      IMPROVEMENT_CYCLE: '1'              # Identify cycle number
     
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +30,31 @@ jobs:
         run: npm ci
         
       - name: Run improvement cycle
-        run: node dist/index.js
+        run: |
+          # Create cycle-specific log directory
+          mkdir -p logs/cycle-1
+          
+          # Run with standard configuration
+          node dist/index.js
         
       - name: Save cycle results
         run: |
+          # Ensure cycle-specific directory exists
           mkdir -p data/cycles/1
-          cp logs/*.json data/cycles/1/
+          
+          # Copy logs with timestamp
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          cp -r logs/cycle-1/* data/cycles/1/${TIMESTAMP}/
+          
+          # Configure git
           git config --global user.name 'HyperCog'
           git config --global user.email 'bot@hypercog.ai'
+          
+          # Commit with detailed message
           git add data/cycles/1
-          git commit -m "Improvement cycle 1 results [skip ci]"
+          git commit -m "Improvement cycle 1 results [${TIMESTAMP}]
+          
+          Strategy: Standard (GPT-4-based)
+          Timestamp: ${TIMESTAMP}
+          [skip ci]"
           git push
